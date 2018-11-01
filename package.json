@@ -1,0 +1,17 @@
+{
+    "name": "cloudant_update_history",
+    "version": "0.0.1",
+    "scripts": {
+        "start": "node app.js"
+    },
+    "dependencies": {
+        "@cloudant/cloudant": "^2.0.1",
+        "body-parser": "~1.18.x",
+        "cfenv": "~1.0.0",
+        "express": "4.1.x"
+    },
+    "repository": {},
+    "engines": {
+        "node": "6.x"
+    }
+}

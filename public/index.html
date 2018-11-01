@@ -1,0 +1,201 @@
+<html>
+<head>
+<meta charset="utf8"/>
+<title>Cloudant Update History</title>
+<script type="text/javascript" src="//code.jquery.com/jquery-2.0.3.min.js"></script>
+<link href="//maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" rel="stylesheet"/>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+<script>
+$(function(){
+  getDocs();
+});
+
+function getDocs(){
+  $('#docs_table_tbody').html( '' );
+
+  $.ajax({
+    type: 'GET',
+    url: '/docs',
+    success: function( result ){
+      if( result.status ){
+        var docs = result.docs;
+        docs.forEach( function( doc ){
+          var tr = '<tr>'
+            + '<td>' + doc._id + '</td>'
+            + '<td>' + doc.text + '</td>'
+            + '<td>' + timestamp2datetime( doc.created ) + '</td>'
+            + '<td>' + timestamp2datetime( doc.updated ) + '</td>'
+            + '<td>' 
+            + '<button class="btn btn-danger" onClick="delDoc(\'' + doc._id + '\');">del</button>'
+            + "<button class='btn btn-info' onClick='editDoc(" + JSON.stringify(doc) + ");'>edit</button>"
+            + '<a href="#" data-toggle="modal" data-target="#myModal" class="btn btn-warning" onClick="docHistory(\'' + doc._id + '\');">history</a>'
+            + '</td>'
+            + '</tr>';
+          $('#docs_table_tbody').append( tr );
+        });
+
+        var tr0 = '<tr>'
+          + '<td id="doc_id"></td>'
+          + '<td id="doc_text"><input id="doc_text_input" type="text" class="form-control" value=""/></td>'
+          + '<td id="doc_created"></td>'
+          + '<td id="doc_updated"></td>'
+          + '<td>' 
+          + '<button class="btn btn-success" onClick="postDoc();">post</button>'
+          + '</td>'
+          + '</tr>';
+        $('#docs_table_tbody').append( tr0 );
+      }
+    },
+    error: function( err ){
+      console.log( err );
+    }
+  });
+}
+
+function delDoc( _id ){
+  if( _id ){
+    if( confirm( 'Delete doc #' + _id + ' ?' ) ){
+      $.ajax({
+        type: 'DELETE',
+        url: '/doc/' + _id,
+        success: function( result ){
+          getDocs();
+        },
+        error: function( err ){
+          console.log( err );
+        }
+      });
+    }
+  }
+}
+
+function editDoc( doc ){
+  if( doc ){
+    $('#doc_id').html( doc._id );
+    $('#doc_text_input').val( doc.text );
+    $('#doc_created').html( timestamp2datetime( doc.created ) );
+    $('#doc_updated').html( timestamp2datetime( doc.updated ) );
+  }else{
+    $('#doc_id').html( '' );
+    $('#doc_text_input').val( '' );
+    $('#doc_created').html( '' );
+    $('#doc_updated').html( '' );
+  }
+}
+
+function docHistory( _id ){
+  $('#text_list').html( '' );
+  $('#myModalLabel').html( 'Update History of #' + _id );
+
+  $.ajax({
+    type: 'GET',
+    url: '/doc/' + _id + '/history',
+    success: function( result ){
+      //console.log( result );
+      if( result.status && result.doc && result.doc._revs_info ){
+        var revs_info = result.doc._revs_info;
+        revs_info.forEach( function( rev_info ){
+          //console.log( rev_info );
+          var _rev = rev_info.rev;
+          $('#text_list').append( '<li id="rev_' + _rev + '" class="list-group-item"></li>' );
+
+          $.ajax({
+            type: 'GET',
+            url: '/doc/' + _id + '?rev=' + _rev,
+            success: function( result ){
+              if( result.status && result.doc ){
+                $('#rev_'+_rev).html( JSON.stringify( result.doc ) );
+              }
+            },
+            error: function(){
+            }
+          });
+        });
+        
+      }
+    },
+    error: function( err ){
+      console.log( err );
+    }
+  });
+}
+
+function postDoc(){
+  var _id = $('#doc_id').html();
+  var text = $('#doc_text_input').val();
+  var data = { text: text };
+  if( _id ){
+    data['_id'] = _id;
+  }
+
+  $.ajax({
+    type: 'POST',
+    url: '/doc',
+    data: data,
+    success: function( result ){
+      getDocs();
+    },
+    error: function( err ){
+      console.log( err );
+    }
+  });
+}
+
+
+function timestamp2datetime( ts ){
+  var dt = new Date( ts );
+  var yyyy = dt.getFullYear();
+  var mm = dt.getMonth() + 1;
+  var dd = dt.getDate();
+  var hh = dt.getHours();
+  var nn = dt.getMinutes();
+  var ss = dt.getSeconds();
+  var datetime = yyyy + '-' + ( mm < 10 ? '0' : '' ) + mm + '-' + ( dd < 10 ? '0' : '' ) + dd
+    + ' ' + ( hh < 10 ? '0' : '' ) + hh + ':' + ( nn < 10 ? '0' : '' ) + nn + ':' + ( ss < 10 ? '0' : '' ) + ss;
+  return datetime;
+}
+</script>
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-light index-header">
+    <a href="/" class="navbar-brand">Cloudant Update History</a>
+    <div class="collapse navbar-collapse target">
+      <ul class="navbar-nav mr-auto">
+      </ul>
+      <ul class="navbar-nav" id="navbar">
+      </ul>
+    </div>
+  </nav>
+
+  <div class="container">
+    <table class="table table-bordered table-striped">
+      <thead>
+        <tr><th>#</th><th>text</th><th>created</th><th>updated</th><th>actions</th></tr>
+      </thead>
+      <tbody id="docs_table_tbody">
+      </tbody>
+    </table>
+  </div>
+
+  <div class="modal bd-example-modal-lg fade" id="myModal" tabindex="-1" role="dialog" aria-labbelledby="myModal" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="myModalLabel">Update History</h4>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <ul id="text_list" class="list-group">
+          </ul>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+
