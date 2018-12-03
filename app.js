@@ -68,7 +68,7 @@ app.post( '/doc', function( req, res ){
               res.write( JSON.stringify( { status: false, message: err }, 2, null ) );
               res.end();
             }else{
-              res.write( JSON.stringify( { status: true, doc: body, message: 'document is created.' }, 2, null ) );
+              res.write( JSON.stringify( { status: true, doc: body, message: 'document is updated.' }, 2, null ) );
               res.end();
             }
           });
